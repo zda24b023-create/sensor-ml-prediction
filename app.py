@@ -23,11 +23,20 @@ def index():
 def predict():
     try:
         data = request.get_json()
+        
+        # Match these keys to the 'name' attribute in your HTML inputs
         features = [
-            float(data['v_x']), float(data['v_y']), float(data['v_z']),
-            float(data['temp']), float(data['curr']), float(data['rpm']),
-            float(data['pres']), 0, 0, 0, 0, 0
+            float(data.get('vibration_x', 0)), 
+            float(data.get('vibration_y', 0)), 
+            float(data.get('vibration_z', 0)),
+            float(data.get('temperature_c', 0)), 
+            float(data.get('current_a', 0)), 
+            float(data.get('rpm', 0)),
+            float(data.get('pressure_bar', 0)), 
+            0, 0, 0, 0, 0
         ]
+        # ... rest of your code ...
+
         input_df = pd.DataFrame([features], columns=COLUMNS)
         
         # 1. Health Status Confidence
