@@ -1,0 +1,15 @@
+:root { --bg: #0b0e14; --card: #151921; --accent: #00d2ff; --text: #e0e0e0; }
+body { background: var(--bg); color: var(--text); font-family: sans-serif; display: flex; justify-content: center; padding: 40px 20px; }
+.dashboard { width: 100%; max-width: 500px; background: var(--card); padding: 30px; border-radius: 12px; }
+.input-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px; }
+.full { grid-column: span 2; }
+.field label { display: block; font-size: 11px; color: #666; text-transform: uppercase; }
+.field input { width: 100%; padding: 10px; background: #0b0e14; border: 1px solid #222; color: #fff; border-radius: 6px; box-sizing: border-box; }
+button { width: 100%; padding: 15px; background: var(--accent); border: none; border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 20px; }
+.result-card { margin-top: 30px; padding: 20px; background: #1c222d; border-radius: 10px; border-top: 4px solid #444; }
+.diag-alert { background: rgba(255, 75, 43, 0.1); border: 1px dashed #ff4b2b; padding: 15px; border-radius: 8px; margin-top: 20px; }
+.meter-bg { background: #333; height: 6px; border-radius: 3px; margin-top: 8px; overflow: hidden; }
+.meter-fill { height: 100%; transition: width 1s ease; }
+.hidden { display: none; }
+.animate-pulse { animation: pulse 2s infinite; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
