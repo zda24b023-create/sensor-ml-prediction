@@ -1,56 +1,46 @@
-from flask import Flask, render_template, request, jsonify
-import joblib
-import pandas as pd
-import numpy as np
-
-app = Flask(__name__)
-
-# Load both brains
-binary_model = joblib.load('model.pkl')
-diagnostic_model = joblib.load('fault_type_model.pkl')
-
-COLUMNS = [
-    'vibration_x', 'vibration_y', 'vibration_z', 'temperature_c', 
-    'current_a', 'rpm', 'pressure_bar', 'wavelet_feature_1', 
-    'wavelet_feature_2', 'wavelet_feature_3', 'wavelet_feature_4', 'wavelet_feature_5'
-]
-
-@app.route('/')
-def index():
-    return render_template('index.html')
-
 @app.route('/predict', methods=['POST'])
 def predict():
     try:
-        data = request.get_json()
+        # 1. Pata data na ulazimishe (force) JSON hata kama header ina tatizo
+        data = request.get_json(force=True)
         
-        # Match these keys to the 'name' attribute in your HTML inputs
-        features = [
-            float(data.get('vibration_x', 0)), 
-            float(data.get('vibration_y', 0)), 
-            float(data.get('vibration_z', 0)),
-            float(data.get('temperature_c', 0)), 
-            float(data.get('current_a', 0)), 
-            float(data.get('rpm', 0)),
-            float(data.get('pressure_bar', 0)), 
-            0, 0, 0, 0, 0
-        ]
-        # ... rest of your code ...
+        # Hii itakuonyesha kwenye Render Logs kile kinachotumwa kutoka kwa JS
+        print(f"DEBUG: Data iliyopokelewa: {data}")
+
+        if not data:
+            return jsonify({"error": "No data received"}), 400
+
+        # 2. Toa data kwa usalama. Ikiwa key haipo, itatumia 0 badala ya kuleta Error 400
+        try:
+            features = [
+                float(data.get('v_x', 0)), 
+                float(data.get('v_y', 0)), 
+                float(data.get('v_z', 0)),
+                float(data.get('temp', 0)), 
+                float(data.get('curr', 0)), 
+                float(data.get('rpm', 0)),
+                float(data.get('pres', 0)), 
+                0, 0, 0, 0, 0  # Wavelet features ambazo modeli inatarajia
+            ]
+        except (ValueError, TypeError) as e:
+            return jsonify({"error": f"Invalid number format: {str(e)}"}), 400
 
         input_df = pd.DataFrame([features], columns=COLUMNS)
         
-        # 1. Health Status Confidence
+        # 3. Health Status Confidence
         is_faulty = int(binary_model.predict(input_df))
         binary_probs = binary_model.predict_proba(input_df)
         health_confidence = binary_probs[0][is_faulty] * 100
 
         diagnosis = ""
         diag_confidence = 0
+        
         if is_faulty == 1:
-            # 2. Specific Problem Confidence
+            # 4. Specific Problem Confidence
             fault_name = diagnostic_model.predict(input_df)[0]
             diag_probs = diagnostic_model.predict_proba(input_df)
-            # Find index of the predicted class in diagnostic model
+            
+            # Tafuta index ya class iliyotabiriwa
             class_idx = np.where(diagnostic_model.classes_ == fault_name)[0][0]
             diag_confidence = diag_probs[0][class_idx] * 100
             
@@ -70,7 +60,6 @@ def predict():
         })
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 400
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+        # Hii itatusaidia kuona kosa halisi kwenye logs kama kodi itafeli
+        print(f"SERVER ERROR: {str(e)}")
+        return jsonify({"error": "Internal Server Error", "details": str(e)}), 500
