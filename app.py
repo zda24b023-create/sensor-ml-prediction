@@ -1,34 +1,49 @@
+from flask import Flask, render_template, request, jsonify
+import joblib
+import pandas as pd
+import numpy as np
+import os
+
+app = Flask(__name__)
+
+# Load your models
+# Ensure these files are in your main folder on GitHub
+binary_model = joblib.load('model.pkl')
+diagnostic_model = joblib.load('fault_type_model.pkl')
+
+COLUMNS = [
+    'vibration_x', 'vibration_y', 'vibration_z', 'temperature_c', 
+    'current_a', 'rpm', 'pressure_bar', 'wavelet_feature_1', 
+    'wavelet_feature_2', 'wavelet_feature_3', 'wavelet_feature_4', 'wavelet_feature_5'
+]
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
 @app.route('/predict', methods=['POST'])
 def predict():
     try:
-        # 1. Pata data na ulazimishe (force) JSON hata kama header ina tatizo
+        # Force JSON parsing and use .get() for safety
         data = request.get_json(force=True)
-        
-        # Hii itakuonyesha kwenye Render Logs kile kinachotumwa kutoka kwa JS
-        print(f"DEBUG: Data iliyopokelewa: {data}")
-
         if not data:
             return jsonify({"error": "No data received"}), 400
 
-        # 2. Toa data kwa usalama. Ikiwa key haipo, itatumia 0 badala ya kuleta Error 400
-        try:
-            features = [
-                float(data.get('v_x', 0)), 
-                float(data.get('v_y', 0)), 
-                float(data.get('v_z', 0)),
-                float(data.get('temp', 0)), 
-                float(data.get('curr', 0)), 
-                float(data.get('rpm', 0)),
-                float(data.get('pres', 0)), 
-                0, 0, 0, 0, 0  # Wavelet features ambazo modeli inatarajia
-            ]
-        except (ValueError, TypeError) as e:
-            return jsonify({"error": f"Invalid number format: {str(e)}"}), 400
-
+        features = [
+            float(data.get('v_x', 0)), 
+            float(data.get('v_y', 0)), 
+            float(data.get('v_z', 0)),
+            float(data.get('temp', 0)), 
+            float(data.get('curr', 0)), 
+            float(data.get('rpm', 0)),
+            float(data.get('pres', 0)), 
+            0, 0, 0, 0, 0
+        ]
+        
         input_df = pd.DataFrame([features], columns=COLUMNS)
         
-        # 3. Health Status Confidence
-        is_faulty = int(binary_model.predict(input_df))
+        # 1. Health Status Confidence
+        is_faulty = int(binary_model.predict(input_df)[0])
         binary_probs = binary_model.predict_proba(input_df)
         health_confidence = binary_probs[0][is_faulty] * 100
 
@@ -36,11 +51,9 @@ def predict():
         diag_confidence = 0
         
         if is_faulty == 1:
-            # 4. Specific Problem Confidence
+            # 2. Specific Problem Confidence
             fault_name = diagnostic_model.predict(input_df)[0]
             diag_probs = diagnostic_model.predict_proba(input_df)
-            
-            # Tafuta index ya class iliyotabiriwa
             class_idx = np.where(diagnostic_model.classes_ == fault_name)[0][0]
             diag_confidence = diag_probs[0][class_idx] * 100
             
@@ -60,6 +73,10 @@ def predict():
         })
 
     except Exception as e:
-        # Hii itatusaidia kuona kosa halisi kwenye logs kama kodi itafeli
-        print(f"SERVER ERROR: {str(e)}")
-        return jsonify({"error": "Internal Server Error", "details": str(e)}), 500
+        print(f"Error: {str(e)}")
+        return jsonify({"error": str(e)}), 400
+
+if __name__ == '__main__':
+    # Use the port Render provides or default to 10000
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host='0.0.0.0', port=port)
